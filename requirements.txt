@@ -2,4 +2,4 @@ openpyxl
 gunicorn
 dash
 pandas
-glob
+glob2

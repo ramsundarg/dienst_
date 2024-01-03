@@ -1,5 +1,8 @@
 import calendar
 import datetime
+import glob
+from pathlib import Path
+
 import dash
 from dash import html, dcc, dash_table
 from dash.dependencies import Input, Output
@@ -8,75 +11,93 @@ import re
 
 names = {}
 labels = []
-file_name = './FKTW ADAC 08-23.xlsx'
-month = 8
-year = 2023
-file_name = './FKTW ADAC 08-23.xlsx'
+month = 1
+year = 2024
 rows = []
 dates = set()
 
-for sheet in range(0, 4):
-    a = pd.read_excel(file_name, sheet_name=sheet)
-    a1 = list(a.values.flatten())
-    for cell in a1:
-        result = re.search(r"\(([A-Z][A-Z][A-Z])\),.*/(.*)", str(cell))
-        if result:
-            names[result.group(1)] = result.group(2)
-            labels.append({'label': result.group(2), 'value': result.group(1)})
+for file_name in glob.glob("data/*.xlsx"):
+    xl = pd.ExcelFile(file_name)
+    res = len(xl.sheet_names)
+    work_type = Path(file_name).stem
+    regex = re.compile('[^a-zA-Z]')
+    work_type = regex.sub('', work_type)
+
+    work_type_hours = {}
+
+    for sheet_name in xl.sheet_names:
+        a = pd.read_excel(file_name, sheet_name=sheet_name)
+        a1 = list(a.values.flatten())
+        for cell in a1:
+            result = re.search(r"\(([A-Z][A-Z][A-Z])\),.*/(.*)", str(cell))
+            if result:
+                names[result.group(1)] = result.group(2)
+                labels.append({'label': result.group(2), 'value': result.group(1)})
+
+
 
 
 def get_df(name):
-    rows=[]
+    rows = []
     dates = set()
-    for sheet in range(0, 4):
-        a = pd.read_excel(file_name, sheet_name=sheet)
-        a1 = list(a.values.flatten())
+    for file_name in glob.glob("data/*.xlsx"):
+        xl = pd.ExcelFile(file_name)
+        res = len(xl.sheet_names)
+        work_type = Path(file_name).stem
+        regex = re.compile('[^a-zA-Z]')
+        work_type = regex.sub('', work_type)
 
-        work_type = ""
         work_type_hours = {}
-        for cell in a1:
-            result = re.search(r"MKT (\w+)", str(cell))
-            if result:
-                work_type = result.group(1)
-                break
 
-        a2 = [str(s) for s in a1 if "=" in str(s)]
-        for hours in a2:
-            result = re.search(r"(.*) =.*- (.*) Uhr", hours)
-            if result and False:
-                work_type_hours[result.group(1)] = result.group(2)
-            else:
-                result = re.search(r"(.*) =", hours)
-                work_type_hours[result.group(1)] = hours.split("=", 1)[1]
+        for sheet_name in xl.sheet_names:
+            a = pd.read_excel(file_name, sheet_name=sheet_name)
+            a1 = list(a.values.flatten())
+            a2 = [str(s) for s in a1 if "=" in str(s)]
+            for hours in a2:
+                for hour  in hours.splitlines():
+                    result = re.search(r"(.*) =.*- (.*) Uhr", hour)
+                    if result and False:
+                        work_type_hours[result.group(1)] = result.group(2)
+                    else:
+                        result = re.search(r"(.*) =", hour)
+                        work_type_hours[result.group(1)] = hour.split("=", 1)[1]
 
-        a = pd.read_excel(file_name, skiprows=2, header=1, sheet_name=sheet)
-        emp = a[a[a.columns[0]].str.contains(name, na=False)]
-        if emp.empty:
-            continue
-        for i in range(1, 32):
-            date1 = datetime.datetime(2023, 8, i, 0, 0)
-            value = ""
-            Uhr = ""
-
-            if emp.get(i, None).all():
-                value = emp[i].values[0]
-                if value == 'D':
+        a = pd.read_excel(file_name, header=None)
+        skip_rows = a[a[0] == 'Datum'].index[0]
+        for sheet_name in xl.sheet_names:
+            a = pd.read_excel(file_name, skiprows=skip_rows, header=0, sheet_name=sheet_name)
+            emp = a[a[a.columns[0]].str.contains(name, na=False)]
+            if emp.empty:
+                continue
+            for i in range(1, 32):
+                if i in dates:
                     continue
-                elif (emp[i].isna().values[0]):
-                    if (i not in dates):
+                try:
+                    date1 = datetime.datetime(year, month, i, 0, 0)
+                except ValueError:
+                    continue
+                value = ""
+                Uhr = ""
+
+                if emp.get(i, None).all():
+                    value = emp[i].values[0]
+                    if value == 'D':
+                        continue
+                    elif (emp[i].isna().values[0]):
                         rows.append({'date': date1, 'day': calendar.day_name[date1.weekday()], "work_type_code": "Free",
                                      'work_time': "", "work_type": ""
                                      })
-                        dates.add(i)
-                    continue
-                else:
-                    rows.append(
-                        {'date': date1, 'day': calendar.day_name[date1.weekday()], "work_type_code": value,
-                         'work_time': work_type_hours.get(value,value),
-                         "work_type": work_type})
-    df = pd.DataFrame.from_records(rows)
-    df = df.sort_values(by='date')
-    return df
+                    else:
+
+                        rows.append(
+                            {'date': date1, 'day': calendar.day_name[date1.weekday()], "work_type_code": value,
+                             'work_time': work_type_hours.get(value, value),
+                             "work_type": work_type})
+                    dates.add(i)
+    df_processed = pd.DataFrame.from_records(rows)
+    df_processed = df_processed.sort_values(by='date')
+    return df_processed
+
 
 
 df = get_df('TRG')

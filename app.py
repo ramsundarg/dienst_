@@ -11,7 +11,7 @@ import re
 
 names = {}
 labels = []
-month = 1
+month = 2
 year = 2024
 rows = []
 dates = set()
@@ -68,9 +68,6 @@ def get_df(name):
         for sheet_name in xl.sheet_names:
             a = pd.read_excel(file_name, skiprows=skip_rows, header=0, sheet_name=sheet_name)
             emp = a[a[a.columns[0]].str.contains(name, na=False)]
-            #print(a)
-            print(emp)
-            print(sheet_name)
             if emp.empty:
                 continue
             for i in range(1, 32):

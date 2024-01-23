@@ -41,6 +41,7 @@ def get_df(name):
     rows = []
     dates = set()
     for file_name in glob.glob("data/*.xlsx"):
+        print(f"processing {file_name}")
         xl = pd.ExcelFile(file_name)
         res = len(xl.sheet_names)
         work_type = Path(file_name).stem

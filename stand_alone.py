@@ -143,19 +143,56 @@ def get_df(name):
         work_type = regex.sub('', work_type)
 
         work_type_hours = {}
+        work_type_desc = {}
 
         for sheet_name in xl.sheet_names:
+
             a = pd.read_excel(file_name, sheet_name=sheet_name)
             a1 = list(a.values.flatten())
             a2 = [str(s) for s in a1 if "=" in str(s)]
             for hours in a2:
                 for hour  in hours.splitlines():
-                    result = re.search(r"(.*) =.*- (.*) Uhr", hour)
-                    if result and False:
-                        work_type_hours[result.group(1)] = result.group(2)
-                    else:
-                        result = re.search(r"(.*) =", hour)
-                        work_type_hours[result.group(1)] = hour.split("=", 1)[1]
+                    result = re.search(r"(.*) =", hour)
+                    # regular expression pattern
+                    pattern = r"[0-9]+[:]?[0-9]*-[0-9]+[:]?[0-9]*"
+                    work_type_hours[result.group(1)] = {}
+                    # find all matches
+                    matches = re.findall(pattern, hour)
+
+                    # get the first match
+                    first_match = matches[0] if matches else None
+
+                    if first_match:
+                        # split the string on '-'
+                        before_dash, after_dash = first_match.split('-', 1)
+
+                        # if before_dash is of the format number:number
+                        if ':' in before_dash:
+                            # take the number before the : as hour and number after colon as minute
+                            hour_before, minute_before = map(int, before_dash.split(':'))
+                        else:
+                            # use all the numbers as hour
+                            hour_before = int(before_dash)
+                            minute_before = 0
+
+                        # construct a datetime
+                        datetime_before = datetime.time(hour = hour_before,minute=minute_before)
+
+                        # if after_dash is of the format number:number
+                        if ':' in after_dash:
+                            # take the number before the : as hour and number after colon as minute
+                            hour_after, minute_after = map(int, after_dash.split(':'))
+                        else:
+                            # use all the numbers as hour
+                            hour_after = int(after_dash)
+                            minute_after = 0
+
+                        # construct a datetime
+                        datetime_after = datetime.time(hour = hour_after,minute=minute_after)
+                        work_type_hours[result.group(1)]['start'] = datetime_before.strftime("%H:%M")
+                        work_type_hours[result.group(1)]['end'] = datetime_after.strftime("%H:%M")
+
+                    work_type_desc[result.group(1)] = hour.split("=", 1)[1]
 
         a = pd.read_excel(file_name, header=None)
         skip_rows = a[a[0] == 'Datum'].index[0]
@@ -179,14 +216,14 @@ def get_df(name):
                     if value == 'D':
                         continue
                     elif (emp[i].isna().values[0]):
-                        rows.append({'date': date1, 'day': calendar.day_name[date1.weekday()], "work_type_code": "Free",
-                                     'work_time': "", "work_type": ""
+                        rows.append({'date': date1, 'day': calendar.day_name[date1.weekday()],"start" : "", "end" : "", "work_type_code": "Free",
+                                     'work_type_desc': "", "work_type": ""
                                      })
                     else:
 
                         rows.append(
-                            {'date': date1, 'day': calendar.day_name[date1.weekday()], "work_type_code": value,
-                             'work_time': work_type_hours.get(value, value),
+                            {'date': date1, 'day': calendar.day_name[date1.weekday()],"start" : work_type_hours.get(value,{}).get('start',""), "end" : work_type_hours.get(value,{}).get('end',""), "work_type_code": value,
+                             'work_type_desc': work_type_desc.get(value, value),
                              "work_type": work_type})
                     dates.add(i)
     df_processed = pd.DataFrame.from_records(rows)
@@ -194,6 +231,7 @@ def get_df(name):
     return df_processed
 
 #convert_files()
-df = get_df('TRG')
+Employee = 'ZWP'
+df = get_df('ZWP')
 df.set_index(['date'], inplace=True)
-df.to_csv(f'Dienst-{month}-{year}.csv')
+df.to_csv(f'{Employee}-{month}-{year}.csv', encoding='iso-8859-15')

@@ -7,3 +7,5 @@ dash_bootstrap_components
 ics
 pyarrow
 dataframe-image-heroku
+lxml
+

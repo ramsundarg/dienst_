@@ -6,3 +6,4 @@ glob2
 dash_bootstrap_components
 ics
 pyarrow
+dataframe_image

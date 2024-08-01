@@ -3,3 +3,7 @@ gunicorn
 dash
 pandas
 glob2
+dash_bootstrap_components
+ics
+pyarrow
+dataframe-image-heroku

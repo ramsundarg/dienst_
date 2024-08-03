@@ -2,6 +2,7 @@ import calendar
 import datetime
 import glob
 from pathlib import Path
+import subprocess
 
 import dash
 from dash import html, dcc, dash_table, State
@@ -389,5 +390,7 @@ def update_output(contents, names,selected_date):
 # Run the app
 if __name__ == '__main__':
     
-
+    subprocess.run(
+                executable="playwright", args="install chromium", capture_output=True, check=True
+            )
     app.run_server(debug=True)

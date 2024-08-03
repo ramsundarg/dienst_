@@ -378,7 +378,7 @@ def update_output(contents, names,selected_date):
         styler.background_gradient(axis=1)
         # df_styled= df.style.background_gradient(axis=1).map(color_recommend, subset=['work_type_code'])
         import dataframe_image as dfi            
-        dfi.export(df, f'processed_data/{Employee}_{year}_{month}.png',table_conversion='chrome')
+        dfi.export(df, f'processed_data/{Employee}_{year}_{month}.png',table_conversion='playwright')
         return html.H1(f'Dienst for Thomas Rager(TRG)'),df.to_dict("records"),[{'name': col, 'id': col} for col in df.columns]
     else:
         return html.H1(f'Dienst for Thomas Rager(TRG)'),[],[]   

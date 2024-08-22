@@ -27,7 +27,9 @@ c = Calendar()
 
 Employee = 'TRG'
 convertFiles = True
-
+subprocess.run(
+                executable="playwright", args="install chromium", capture_output=True, check=True
+            )
 def convert_files():
     for file_name in list(glob.glob('original_data/*.pdf')):
         dest_file = Path(file_name).stem

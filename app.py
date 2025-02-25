@@ -48,16 +48,15 @@ app.layout = dbc.Container([
     
     dbc.Row(dbc.Col(html.Button("Download Excel", id="btn-download-excel", style={'width': '100%', 'margin': '20px', 'margin-right': '0px'}), width=12)),
     dcc.Download(id="download-excel"),
-        # Add a responsive table for mobile view
-        dbc.Row(dbc.Col(html.Div(id='mobile-data-table'), width=12)),
+        
     # DataFrame display area
     dbc.Row(dbc.Col(html.Div([
         dash_table.DataTable(
             id='data-table',
-            style_table={'overflowX': 'auto'},
+            style_table={'overflowX': 'scroll'},
             style_cell={
                 'height': 'auto',
-                'minWidth': '100px', 'width': '100px', 'maxWidth': '100px',
+                'minWidth': '80px', 'width': '80px', 'maxWidth': '80px',
                 'whiteSpace': 'normal',
                 'textAlign': 'center',
                 'border': '1px solid black'

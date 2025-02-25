@@ -50,15 +50,38 @@ app.layout = dbc.Container([
     dcc.Download(id="download-excel"),
         
     # DataFrame display area
-    dbc.Row(dbc.Col(dash_table.DataTable(
-        id='data-table',
-        style_data_conditional=[{'if': {
-                'filter_query': '{work_type_code} = "Free"', # comparing columns to each other
-                'column_id': 'work_type_code'
+    dbc.Row(dbc.Col(html.Div([
+        dash_table.DataTable(
+            id='data-table',
+            style_table={'overflowX': 'auto'},
+            style_cell={
+                'height': 'auto',
+                'minWidth': '100px', 'width': '100px', 'maxWidth': '100px',
+                'whiteSpace': 'normal',
+                'textAlign': 'center',
+                'border': '1px solid black'
             },
-            'backgroundColor': '#3D9970'
-        }]
-    ), width=12)),
+            style_header={
+                'backgroundColor': 'rgb(230, 230, 230)',
+                'fontWeight': 'bold',
+                'border': '1px solid black'
+            },
+            style_data={
+                'border': '1px solid black'
+            },
+            style_data_conditional=[
+                {
+                    'if': {
+                        'filter_query': '{work_type_code} = "Free"',
+                        'column_id': 'work_type_code'
+                    },
+                    'backgroundColor': '#3D9970',
+                    'color': 'white'
+                }
+            ]
+        )
+    ]), width=12)),
+
 ], fluid=True)
 
 @app.callback(

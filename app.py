@@ -336,7 +336,10 @@ def download_image(n_clicks,selected_date):
         f'processed_data/{Employee}_{year}_{month}.png'
     )
 
-# Define a callback to process the uploaded PDF files and update the data table
+iimport pandas as pd
+import openpyxl
+from openpyxl.styles import PatternFill
+
 @app.callback(
     Output("record-statistics", "children"),
     Output("data-table", "data"),
@@ -345,7 +348,7 @@ def download_image(n_clicks,selected_date):
     State('upload-pdf', 'filename'),
     State('date-picker', 'date')
 )
-def update_output(contents, names,selected_date):
+def update_output(contents, names, selected_date):
     df = None
     date_object = datetime.date.fromisoformat(selected_date)
     year = date_object.year
@@ -353,38 +356,39 @@ def update_output(contents, names,selected_date):
     if os.path.exists(f"processed_data/{Employee}_{year}_{month}.parquet"):
         df = pd.read_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
     elif contents is not None:
-        date_object = datetime.date.fromisoformat(selected_date)
-        year = date_object.year
-        month = date_object.month
         files = []
         for c, n in zip(contents, names):
             content_type, content_string = c.split(',')
             decoded = base64.b64decode(content_string)
-            print(decoded)
             files.append(convert_file(n, decoded))
-        print(files)
-        print("All files converted, now computing the dienst") 
-        df = get_df(files,Employee,year,month)
+        df = get_df(files, Employee, year, month)
         df.to_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
     if df is not None:
-        def color_recommend(value):
-            if value == 'Free':
-                color = 'green'
-            else:
-                return
-            return f'background-color: {color}'
         df['date'] = df['date'].dt.date
-        styler = df.style
-        styler.applymap(color_recommend, subset=['work_type_code'])
-        styler.background_gradient(axis=1)
-        # df_styled= df.style.background_gradient(axis=1).map(color_recommend, subset=['work_type_code'])
-        import dataframe_image as dfi            
-        dfi.export(df, f'processed_data/{Employee}_{year}_{month}.png',table_conversion='playwright')
-        return html.H1(f'Dienst for Thomas Rager(TRG)'),df.to_dict("records"),[{'name': col, 'id': col} for col in df.columns]
+        # Export to Excel with styling
+        excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
+        df.to_excel(excel_path, index=False, engine='openpyxl')
+
+        # Load the workbook and sheet
+        wb = openpyxl.load_workbook(excel_path)
+        ws = wb.active
+
+        # Define the fill for 'Free' cells
+        green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+
+        # Apply the fill to cells with 'Free' in the 'work_type_code' column
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+            for cell in row:
+                if cell.column_letter == 'work_type_code' and cell.value == 'Free':
+                    for c in row:
+                        c.fill = green_fill
+
+        # Save the workbook
+        wb.save(excel_path)
+
+        return html.H1(f'Dienst for Thomas Rager(TRG)'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns]
     else:
-        return html.H1(f'Dienst for Thomas Rager(TRG)'),[],[]   
-
-
+        return html.H1(f'Dienst for Thomas Rager(TRG)'), [], []
 
 
 # Run the app

@@ -336,7 +336,6 @@ def download_image(n_clicks,selected_date):
         f'processed_data/{Employee}_{year}_{month}.png'
     )
 
-iimport pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill
 

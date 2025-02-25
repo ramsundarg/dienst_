@@ -20,10 +20,11 @@ from pathlib import Path
 import os
 import requests
 from ics import Calendar, Event
+import openpyxl
+from openpyxl.styles import PatternFill
+
 publishIcs = True
 c = Calendar()
-
-# and it's done !
 
 Employee = 'TRG'
 convertFiles = True
@@ -33,10 +34,10 @@ def convert_files():
         dest_file = Path(file_name).stem
         with open(file_name, 'rb') as fp:
             payload = fp.read()
-            convert_file(file_name,payload)
+            convert_file(file_name, payload)
         print("All files converted, now computing the dienst")
 
-def convert_file(file_name,file_content):
+def convert_file(file_name, file_content):
     import http
     conn = http.client.HTTPSConnection("pdf-services-ew1.adobe.io")
 
@@ -56,7 +57,6 @@ def convert_file(file_name,file_content):
     data_json = json.loads(data_decoded)
     access_token = data_json['access_token']
 
-    
     conn = http.client.HTTPSConnection("pdf-services.adobe.io")
 
     payload = "{\n\t\"mediaType\" :  \"application/pdf\"\n}"
@@ -137,10 +137,7 @@ def convert_file(file_name,file_content):
             urllib.request.urlretrieve(downloadUri['downloadUri'], f'{dest_file}.xlsx')
             return f'{dest_file}.xlsx'
 
-    
-
-
-def get_df(files,name,year,month):
+def get_df(files, name, year, month):
     rows = []
     dates = set()
     for file_name in files:
@@ -154,7 +151,6 @@ def get_df(files,name,year,month):
         work_type_desc = {}
         print(f"Reading sheet {file_name}")
         for sheet_name in xl.sheet_names:
-
             a = pd.read_excel(file_name, sheet_name=sheet_name)
             a1 = list(a.values.flatten())
             a2 = [str(s) for s in a1 if "=" in str(s)]
@@ -275,15 +271,13 @@ app.layout = html.Div([
     # Title
     html.Div(id='record-statistics'),
     
-    html.Label('Select Month and year',className='d-table',style={'margin': '40px'}),
+    html.Label('Select Month and year', className='d-table', style={'margin': '40px'}),
     dcc.DatePickerSingle(
         id='date-picker',
         placeholder='Select Month',
         date=datetime.date.today(),
     ),
    
-    
-    
     # Upload component to select and upload PDF files
     html.Div([dcc.Upload(
         id='upload-pdf',
@@ -302,9 +296,10 @@ app.layout = html.Div([
             'margin': '10px'
         },
         multiple=True
-    )],className='columns'),
-    html.Button("Download Image", id="btn-download-txt",style={'width': '30%','margin': '20px','margin-right': '0px'}),
-    dcc.Download(id="download-text"),
+    )], className='columns'),
+    
+    html.Button("Download Excel", id="btn-download-excel", style={'width': '30%', 'margin': '20px', 'margin-right': '0px'}),
+    dcc.Download(id="download-excel"),
         
     # DataFrame display area
     dash_table.DataTable(
@@ -314,30 +309,22 @@ app.layout = html.Div([
                 'column_id': 'work_type_code'
             },
             'backgroundColor': '#3D9970'
-        }
-        ]
+        }]
     ),
 ])
 
-
-
 @app.callback(
-    Output("download-text", "data"),
-    Input("btn-download-txt", "n_clicks"),
+    Output("download-excel", "data"),
+    Input("btn-download-excel", "n_clicks"),
     State('date-picker', 'date'),
     prevent_initial_call=True,
 )
-def download_image(n_clicks,selected_date):
-    print(selected_date)
+def download_excel(n_clicks, selected_date):
     date_object = datetime.date.fromisoformat(selected_date)
     year = date_object.year
     month = date_object.month
-    return dcc.send_file(
-        f'processed_data/{Employee}_{year}_{month}.png'
-    )
-
-import openpyxl
-from openpyxl.styles import PatternFill
+    excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
+    return dcc.send_file(excel_path)
 
 @app.callback(
     Output("record-statistics", "children"),
@@ -389,11 +376,9 @@ def update_output(contents, names, selected_date):
     else:
         return html.H1(f'Dienst for Thomas Rager(TRG)'), [], []
 
-
 # Run the app
 if __name__ == '__main__':
-    
     subprocess.run(
-                executable="playwright", args="install chromium", capture_output=True, check=True
-            )
+        executable="playwright", args="install chromium", capture_output=True, check=True
+    )
     app.run_server(debug=True)

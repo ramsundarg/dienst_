@@ -303,7 +303,7 @@ if __name__ == "__main__":
     files = list(glob.glob("data/*.xlsx"))
 
     df = get_df(files, name, year, month)
-    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+    #df['date'] = df['date'].dt.strftime('%Y-%m-%d')
     df.to_excel('processed_data.xlsx', index=False)
     apply_styling_to_excel('processed_data.xlsx')
 

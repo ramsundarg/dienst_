@@ -255,7 +255,10 @@ def get_df(files, name, year, month):
 
 def adjust_column_width(ws):
     for column in ws.columns:
-        max_length = 0
+        if column[0].value == 'date':
+            max_length = 8
+        else:
+            max_length = 0
         column = list(column)
         for cell in column:
             try:
@@ -290,21 +293,23 @@ def apply_styling_to_excel(excel_path):
     wb.save(excel_path)
 
 if __name__ == "__main__":
-    convertFiles = False
-    name = 'TRG'  # Replace with actual employee name
-    year = 2025
-    month = 3
+    apply_styling_to_excel('TRG_2025_3.xlsx')
+    if False:
+        convertFiles = False
+        name = 'TRG'  # Replace with actual employee name
+        year = 2025
+        month = 3
 
-    # Example usage
-    if convertFiles:
-        convert_files()
-    
-    # Assuming you have some files to process
-    files = list(glob.glob("data/*.xlsx"))
+        # Example usage
+        if convertFiles:
+            convert_files()
+        
+        # Assuming you have some files to process
+        files = list(glob.glob("data/*.xlsx"))
 
-    df = get_df(files, name, year, month)
-    #df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-    df.to_excel('processed_data.xlsx', index=False)
-    apply_styling_to_excel('processed_data.xlsx')
+        df = get_df(files, name, year, month)
+        #df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        df.to_excel('processed_data.xlsx', index=False)
+        apply_styling_to_excel('processed_data.xlsx')
 
     

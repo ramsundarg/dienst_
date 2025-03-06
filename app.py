@@ -1,18 +1,21 @@
 import base64
 import datetime
-import subprocess
 import os
 import dash
 from dash import html, dcc, dash_table, State
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
-from data_processing import convert_file, get_df, apply_styling_to_excel, Employee
+from data_processing import convert_file, get_df, apply_styling_to_excel
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
+
+# Global variables to track progress and status
+progress = 0
+status = []
 
 # Define the layout of the app
 app.layout = dbc.Container([
@@ -24,6 +27,15 @@ app.layout = dbc.Container([
         id='date-picker',
         placeholder='Select Month',
         date=datetime.date.today(),
+    ), width=12)),
+    
+    # Input for employee code
+    dbc.Row(dbc.Col(dcc.Input(
+        id='employee-code',
+        type='text',
+        value='TRG',
+        placeholder='Enter Employee Code',
+        style={'width': '100%', 'margin': '20px'}
     ), width=12)),
    
     # Upload component to select and upload PDF files
@@ -97,56 +109,72 @@ app.layout = dbc.Container([
     Output("progress-bar", "value"),
     Output("conversion-status", "children"),
     Input("btn-generate-dienst", "n_clicks"),
+    Input("interval-progress", "n_intervals"),
     State('date-picker', 'date'),
+    State('employee-code', 'value'),
     prevent_initial_call=True,
 )
-def generate_dienst(n_clicks, selected_date):
-    df = None
-    date_object = datetime.date.fromisoformat(selected_date)
-    year = date_object.year
-    month = date_object.month
-    progress = 0
-    status = []
-    if os.path.exists(f"processed_data/{Employee}_{year}_{month}.parquet"):
-        df = pd.read_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
-    else:
-        files = []
-        total_files = len([f for f in os.listdir('uploaded_files') if f.endswith('.pdf')])
-        for idx, filename in enumerate(os.listdir('uploaded_files')):
-            if filename.endswith('.pdf'):
-                with open(os.path.join('uploaded_files', filename), 'rb') as f:
-                    file_content = f.read()
-                    files.append(convert_file(filename, file_content))
-                progress = int((idx + 1) / total_files * 100)
-                status.append(f"Converted {filename} to Excel.")
-        if files:
-            files = [os.path.join('uploaded_files', f) for f in files]
-            df = get_df(files, Employee, year, month)
-            df.to_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
-    if df is not None:
-        df['date'] = df['date'].dt.date
-        # Export to Excel with styling
-        excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
-        df.to_excel(excel_path, index=False, engine='openpyxl')
+def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
+    global progress, status
+    ctx = dash.callback_context
 
-        # Apply styling to the Excel file
-        apply_styling_to_excel(excel_path)
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(s) for s in status])
 
-        return html.H1(f'Dienst for Thomas Rager(TRG)'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns], progress, html.Ul([html.Li(s) for s in status])
-    else:
-        return html.H1(f'Dienst for Thomas Rager(TRG)'), [], [], progress, html.Ul([html.Li(s) for s in status])
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == 'btn-generate-dienst':
+        df = None
+        date_object = datetime.date.fromisoformat(selected_date)
+        year = date_object.year
+        month = date_object.month
+        progress = 0
+        status = []
+        if os.path.exists(f"processed_data/{employee_code}_{year}_{month}.parquet"):
+            df = pd.read_parquet(f"processed_data/{employee_code}_{year}_{month}.parquet")
+        else:
+            files = []
+            total_files = len([f for f in os.listdir('uploaded_files') if f.endswith('.pdf')])
+            for idx, filename in enumerate(os.listdir('uploaded_files')):
+                if filename.endswith('.pdf'):
+                    with open(os.path.join('uploaded_files', filename), 'rb') as f:
+                        file_content = f.read()
+                        files.append(convert_file(os.path.join('uploaded_files', filename), file_content))
+                        
+                    progress = int((idx + 1) / total_files * 100)
+                    status.append(f"Converted {filename} to Excel.")
+            if files:
+                files = [os.path.join('uploaded_files',f) for f in os.listdir('uploaded_files') if f.endswith('.xlsx')]
+                df = get_df(files, employee_code, year, month)
+                df.to_parquet(f"processed_data/{employee_code}_{year}_{month}.parquet")
+        if df is not None:
+            df['date'] = df['date'].dt.date
+            # Export to Excel with styling
+            excel_path = f'processed_data/{employee_code}_{year}_{month}.xlsx'
+            df.to_excel(excel_path, index=False, engine='openpyxl')
+
+            # Apply styling to the Excel file
+            apply_styling_to_excel(excel_path)
+
+            return html.H1(f'Dienst for {employee_code}'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns], progress, html.Ul([html.Li(s) for s in status])
+        else:
+            return html.H1(f'Dienst for {employee_code}'), [], [], progress, html.Ul([html.Li(s) for s in status])
+
+    elif trigger_id == 'interval-progress':
+        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(s) for s in status])
 
 @app.callback(
     Output("download-excel", "data"),
     Input("btn-download-excel", "n_clicks"),
     State('date-picker', 'date'),
+    State('employee-code', 'value'),
     prevent_initial_call=True,
 )
-def download_excel(n_clicks, selected_date):
+def download_excel(n_clicks, selected_date, employee_code):
     date_object = datetime.date.fromisoformat(selected_date)
     year = date_object.year
     month = date_object.month
-    excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
+    excel_path = f'processed_data/{employee_code}_{year}_{month}.xlsx'
     
     # Apply styling to the Excel file
     apply_styling_to_excel(excel_path)
@@ -184,7 +212,5 @@ if __name__ == '__main__':
         os.makedirs('uploaded_files')
     if not os.path.exists('processed_data'):
         os.makedirs('processed_data')
-    subprocess.run(
-        executable="playwright", args="install chromium", capture_output=True, check=True
-    )
+    
     app.run_server(debug=True)

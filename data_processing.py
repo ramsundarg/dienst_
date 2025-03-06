@@ -75,6 +75,7 @@ def convert_file(file_name, file_content):
     conn = http.client.HTTPSConnection(share_host)
     share_host = f"https://{share_host}"
 
+    
     dest_file = Path(file_name).stem
     payload = file_content
 
@@ -126,7 +127,7 @@ def convert_file(file_name, file_content):
             print(f"Not converted file {file_name}, waiting for 3 seconds")
             sleep(3)
         else:
-            urllib.request.urlretrieve(downloadUri['downloadUri'], f'{dest_file}.xlsx')
+            urllib.request.urlretrieve(downloadUri['downloadUri'], f'uploaded_files/{dest_file}.xlsx')
             return f'{dest_file}.xlsx'
 
 def get_df(files, name, year, month):

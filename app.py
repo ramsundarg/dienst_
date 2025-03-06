@@ -46,8 +46,14 @@ app.layout = dbc.Container([
         multiple=True
     )], className='columns'), width=12)),
     
+    dbc.Row(dbc.Col(html.Button("Generate Dienst", id="btn-generate-dienst", style={'width': '100%', 'margin': '20px', 'margin-right': '0px'}), width=12)),
     dbc.Row(dbc.Col(html.Button("Download Excel", id="btn-download-excel", style={'width': '100%', 'margin': '20px', 'margin-right': '0px'}), width=12)),
     dcc.Download(id="download-excel"),
+    
+    # Progress bar and status
+    dbc.Row(dbc.Col(dcc.Interval(id='interval-progress', interval=1000, n_intervals=0), width=12)),
+    dbc.Row(dbc.Col(dbc.Progress(id='progress-bar', value=0, striped=True, animated=True, style={'margin': '20px'}), width=12)),
+    dbc.Row(dbc.Col(html.Div(id='conversion-status'), width=12)),
         
     # DataFrame display area
     dbc.Row(dbc.Col(html.Div([
@@ -85,6 +91,52 @@ app.layout = dbc.Container([
 ], fluid=True)
 
 @app.callback(
+    Output("record-statistics", "children"),
+    Output("data-table", "data"),
+    Output("data-table", "columns"),
+    Output("progress-bar", "value"),
+    Output("conversion-status", "children"),
+    Input("btn-generate-dienst", "n_clicks"),
+    State('date-picker', 'date'),
+    prevent_initial_call=True,
+)
+def generate_dienst(n_clicks, selected_date):
+    df = None
+    date_object = datetime.date.fromisoformat(selected_date)
+    year = date_object.year
+    month = date_object.month
+    progress = 0
+    status = []
+    if os.path.exists(f"processed_data/{Employee}_{year}_{month}.parquet"):
+        df = pd.read_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
+    else:
+        files = []
+        total_files = len([f for f in os.listdir('uploaded_files') if f.endswith('.pdf')])
+        for idx, filename in enumerate(os.listdir('uploaded_files')):
+            if filename.endswith('.pdf'):
+                with open(os.path.join('uploaded_files', filename), 'rb') as f:
+                    file_content = f.read()
+                    files.append(convert_file(filename, file_content))
+                progress = int((idx + 1) / total_files * 100)
+                status.append(f"Converted {filename} to Excel.")
+        if files:
+            files = [os.path.join('uploaded_files', f) for f in files]
+            df = get_df(files, Employee, year, month)
+            df.to_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
+    if df is not None:
+        df['date'] = df['date'].dt.date
+        # Export to Excel with styling
+        excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
+        df.to_excel(excel_path, index=False, engine='openpyxl')
+
+        # Apply styling to the Excel file
+        apply_styling_to_excel(excel_path)
+
+        return html.H1(f'Dienst for Thomas Rager(TRG)'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns], progress, html.Ul([html.Li(s) for s in status])
+    else:
+        return html.H1(f'Dienst for Thomas Rager(TRG)'), [], [], progress, html.Ul([html.Li(s) for s in status])
+
+@app.callback(
     Output("download-excel", "data"),
     Input("btn-download-excel", "n_clicks"),
     State('date-picker', 'date'),
@@ -102,43 +154,36 @@ def download_excel(n_clicks, selected_date):
     return dcc.send_file(excel_path)
 
 @app.callback(
-    Output("record-statistics", "children"),
-    Output("data-table", "data"),
-    Output("data-table", "columns"),
+    Output('upload-pdf', 'children'),
     Input('upload-pdf', 'contents'),
     State('upload-pdf', 'filename'),
-    State('date-picker', 'date')
+    prevent_initial_call=True,
 )
-def update_output(contents, names, selected_date):
-    df = None
-    date_object = datetime.date.fromisoformat(selected_date)
-    year = date_object.year
-    month = date_object.month
-    if os.path.exists(f"processed_data/{Employee}_{year}_{month}.parquet"):
-        df = pd.read_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
-    elif contents is not None:
-        files = []
+def store_files(contents, names):
+    # Create the folder if it doesn't exist and clean everything in it
+    upload_folder = 'uploaded_files'
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    else:
+        for filename in os.listdir(upload_folder):
+            file_path = os.path.join(upload_folder, filename)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+    if contents is not None:
         for c, n in zip(contents, names):
             content_type, content_string = c.split(',')
             decoded = base64.b64decode(content_string)
-            files.append(convert_file(n, decoded))
-        df = get_df(files, Employee, year, month)
-        df.to_parquet(f"processed_data/{Employee}_{year}_{month}.parquet")
-    if df is not None:
-        df['date'] = df['date'].dt.date
-        # Export to Excel with styling
-        excel_path = f'processed_data/{Employee}_{year}_{month}.xlsx'
-        df.to_excel(excel_path, index=False, engine='openpyxl')
-
-        # Apply styling to the Excel file
-        apply_styling_to_excel(excel_path)
-
-        return html.H1(f'Dienst for Thomas Rager(TRG)'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns]
-    else:
-        return html.H1(f'Dienst for Thomas Rager(TRG)'), [], []
+            with open(os.path.join('uploaded_files', n), 'wb') as f:
+                f.write(decoded)
+        return html.Div(['Files uploaded successfully!'])
+    return html.Div(['Drag and Drop or ', html.A('Select Files for the month')])
 
 # Run the app
 if __name__ == '__main__':
+    if not os.path.exists('uploaded_files'):
+        os.makedirs('uploaded_files')
+    if not os.path.exists('processed_data'):
+        os.makedirs('processed_data')
     subprocess.run(
         executable="playwright", args="install chromium", capture_output=True, check=True
     )

@@ -13,9 +13,6 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
 
-# Global variables to track progress and status
-progress = 0
-status = []
 
 # Define the layout of the app
 app.layout = dbc.Container([
@@ -120,7 +117,7 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
 
     if not ctx.triggered:
         print('No trigger')
-        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(s) for s in status])
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
     print(f'Triggered by: {trigger_id}')
@@ -158,10 +155,10 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
 
             return html.H1(f'Dienst for {employee_code}'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns], progress, html.Ul([html.Li(s) for s in status])
         else:
-            return html.H1(f'Dienst for {employee_code}'), [], [], progress, html.Ul([html.Li(s) for s in status])
+            return html.H1(f'Dienst for {employee_code}'), [], [], progress, html.Ul([html.Li(status) ])
 
     elif trigger_id == 'interval-progress':
-        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(s) for s in status])
+        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(status)])
 
 @app.callback(
     Output("download-excel", "data"),

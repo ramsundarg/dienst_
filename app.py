@@ -2,6 +2,7 @@ import base64
 import datetime
 import os
 from time import sleep
+import time
 import dash
 from dash import html, dcc, dash_table, State
 from dash.dependencies import Input, Output
@@ -10,7 +11,13 @@ import pandas as pd
 from data_processing import convert_file, get_df, apply_styling_to_excel
 
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+from dash import DiskcacheManager
+# Diskcache for non-production apps when developing locally
+import diskcache
+cache = diskcache.Cache("./cache")
+background_callback_manager = DiskcacheManager(cache)
+
+app = dash.Dash(__name__, background_callback_manager=background_callback_manager)
 
 server = app.server
 
@@ -61,10 +68,11 @@ app.layout = dbc.Container([
     dcc.Download(id="download-excel"),
     
     # Progress bar and status
-    dbc.Row(dbc.Col(dcc.Interval(id='interval-progress', interval=1000, n_intervals=0), width=12)),
-    dbc.Row(dbc.Col(dbc.Progress(id='progress-bar', value=0, striped=True, animated=True, style={'margin': '20px'}), width=12)),
-    dbc.Row(dbc.Col(html.Div(id='conversion-status'), width=12)),
-        
+    dbc.Row(dbc.Col(        html.Div(
+            [
+                html.P(id="paragraph_id", children=["Button not clicked"]),
+                html.Progress(id="progress_bar", value="0"),
+            ]))),
     # DataFrame display area
     dbc.Row(dbc.Col(html.Div([
         dash_table.DataTable(
@@ -104,16 +112,22 @@ app.layout = dbc.Container([
     Output("record-statistics", "children"),
     Output("data-table", "data"),
     Output("data-table", "columns"),
-    Output("progress-bar", "value"),
-    Output("conversion-status", "children"),
     Input("btn-generate-dienst", "n_clicks"),
-    Input("interval-progress", "n_intervals"),
     State('date-picker', 'date'),
     State('employee-code', 'value'),
+    running=[
+        (Output("btn-generate-dienst", "disabled"), True, False),
+        (Output("cancel_button_id", "disabled"), False, True),
+        (
+            Output("progress_bar", "style"),
+            {"visibility": "visible"},
+            {"visibility": "hidden"},
+        ),
+    ],
+    #progress=[Output("progress_bar", "value"), Output("progress_bar", "max")],
     prevent_initial_call=True,
 )
-def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
-    global progress, status
+def generate_dienst(n_clicks,selected_date, employee_code):
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -134,13 +148,14 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
             files = []
             total_files = len([f for f in os.listdir('uploaded_files') if f.endswith('.pdf')])
             for idx, filename in enumerate(os.listdir('uploaded_files')):
+                #time.sleep(1)
+                #set_progress((str(idx + 1), str(total_files)))
                 if filename.endswith('.pdf'):
+                    progress = int((idx + 1) / total_files * 100)
+                    status=(f"Converted {filename} to Excel.")
                     with open(os.path.join('uploaded_files', filename), 'rb') as f:
                         file_content = f.read()
                         files.append(convert_file(os.path.join('uploaded_files', filename), file_content))
-                        sleep(1)
-                    progress = int((idx + 1) / total_files * 100)
-                    status=(f"Converted {filename} to Excel.")
             if files:
                 files = [os.path.join('uploaded_files',f) for f in os.listdir('uploaded_files') if f.endswith('.xlsx')]
                 df = get_df(files, employee_code, year, month)
@@ -153,16 +168,13 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
 
             # Apply styling to the Excel file
             apply_styling_to_excel(excel_path)
+            print("Done in the background")
+            
 
-            return html.H1(f'Dienst for {employee_code}'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns], progress, html.Ul([html.Li(s) for s in status])
+            return html.H1(f'Dienst for {employee_code}'), df.to_dict("records"), [{'name': col, 'id': col} for col in df.columns]
         else:
-            return html.H1(f'Dienst for {employee_code}'), [], [], progress, html.Ul([html.Li(status) ])
+            return html.H1(f'Dienst for {employee_code}'), [], []
 
-    elif trigger_id == 'interval-progress' :
-        if progress < 90:
-            return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(status)])
-        else: 
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 @app.callback(
     Output("download-excel", "data"),

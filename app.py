@@ -119,17 +119,17 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
     ctx = dash.callback_context
 
     if not ctx.triggered:
+        print('No trigger')
         return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(s) for s in status])
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f'Triggered by: {trigger_id}')
 
     if trigger_id == 'btn-generate-dienst':
         df = None
         date_object = datetime.date.fromisoformat(selected_date)
         year = date_object.year
         month = date_object.month
-        progress = 0
-        status = []
         if os.path.exists(f"processed_data/{employee_code}_{year}_{month}.parquet"):
             df = pd.read_parquet(f"processed_data/{employee_code}_{year}_{month}.parquet")
         else:
@@ -142,7 +142,7 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
                         files.append(convert_file(os.path.join('uploaded_files', filename), file_content))
                         
                     progress = int((idx + 1) / total_files * 100)
-                    status.append(f"Converted {filename} to Excel.")
+                    status=(f"Converted {filename} to Excel.")
             if files:
                 files = [os.path.join('uploaded_files',f) for f in os.listdir('uploaded_files') if f.endswith('.xlsx')]
                 df = get_df(files, employee_code, year, month)

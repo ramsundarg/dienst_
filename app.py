@@ -1,6 +1,7 @@
 import base64
 import datetime
 import os
+from time import sleep
 import dash
 from dash import html, dcc, dash_table, State
 from dash.dependencies import Input, Output
@@ -137,7 +138,7 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
                     with open(os.path.join('uploaded_files', filename), 'rb') as f:
                         file_content = f.read()
                         files.append(convert_file(os.path.join('uploaded_files', filename), file_content))
-                        
+                        sleep(1)
                     progress = int((idx + 1) / total_files * 100)
                     status=(f"Converted {filename} to Excel.")
             if files:
@@ -157,8 +158,11 @@ def generate_dienst(n_clicks, n_intervals, selected_date, employee_code):
         else:
             return html.H1(f'Dienst for {employee_code}'), [], [], progress, html.Ul([html.Li(status) ])
 
-    elif trigger_id == 'interval-progress':
-        return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(status)])
+    elif trigger_id == 'interval-progress' :
+        if progress < 90:
+            return dash.no_update, dash.no_update, dash.no_update, progress, html.Ul([html.Li(status)])
+        else: 
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 @app.callback(
     Output("download-excel", "data"),

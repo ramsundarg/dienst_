@@ -1,6 +1,7 @@
 openpyxl
 gunicorn
 dash
+dash[diskcache]
 pandas
 glob2
 dash_bootstrap_components

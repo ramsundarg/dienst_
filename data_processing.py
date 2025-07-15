@@ -210,6 +210,7 @@ def get_df(files, name, year, month):
 
                 if emp.get(i, None).all():
                     value = emp[i].values[0]
+                    value = re.search(r'\w+', str(value)).group(0) if re.search(r'\w+', str(value)) else value
                     if value == 'D':
                         continue
                     elif (emp[i].isna().values[0]):
@@ -275,21 +276,38 @@ def adjust_column_width(ws):
 def apply_styling_to_excel(excel_path):
     # Load the workbook and sheet
     wb = openpyxl.load_workbook(excel_path)
+    
     ws = wb.active
+    # Define the fill for 'Free' cells (light green)
+    light_green_fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
 
-    # Define the fill for 'Free' cells
-    dark_green_fill = PatternFill(start_color="006400", end_color="006400", fill_type="solid")
-    green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+    # Find the 'work_type_code' column index
+    header = [cell.value for cell in ws[1]]
+    try:
+        work_type_code_idx = header.index('work_type_code') + 1
+    except ValueError:
+        work_type_code_idx = None
 
-    # Apply the fill to cells with 'Free' in the 'work_type_code' column
+    # Track max length for each column
+    col_sizes = {}
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        for idx, cell in enumerate(row):
+            col_sizes[cell.col_idx]= max(col_sizes.get(cell.col_idx, 0), len(str(cell.value)) if cell.value is not None else 0)
+    
+    # Set first column ('date') width to 12
+    
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        for cell in row:
+        for idx, cell in enumerate(row):
+            if cell.col_idx in col_sizes:
+                ws.column_dimensions[cell.column_letter].width = max(12, col_sizes[cell.col_idx] + 2)
+            else:
+                ws.column_dimensions[cell.column_letter].width = 12
+            
+        # Color cell if 'Free' in work_type_code column
+        if work_type_code_idx is not None:
+            cell = row[work_type_code_idx - 1]
             if cell.value == 'Free':
-                cell.fill = dark_green_fill
-
-    # Adjust column width
-    adjust_column_width(ws)
-
+                cell.fill = light_green_fill
     # Save the workbook
     wb.save(excel_path)
 

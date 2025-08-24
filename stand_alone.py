@@ -17,7 +17,7 @@ publishIcs = True
 
 # and it's done !
 
-month = 4
+month = 9
 year = 2025
 Employee = 'TRG'
 employee_code = 'TRG'
@@ -136,16 +136,10 @@ if convertFiles:
 
 files = list(glob.glob('data/*.xlsx'))
 df = get_df(files, employee_code, year, month)
-df.to_parquet(f"processed_data/{employee_code}_{year}_{month}.parquet")
 if df is not None:
     df['date'] = df['date'].dt.date
     # Export to Excel with styling
     excel_path = f'processed_data/{employee_code}_{year}_{month}.xlsx'
     df.to_excel(excel_path, index=False, engine='openpyxl')
-
-# Apply styling to the Excel file
-apply_styling_to_excel(excel_path)
-df = get_df(Employee)
-df.set_index(['date'], inplace=True)
-df.to_csv(f'{Employee}-{month}-{year}.csv', encoding='iso-8859-15')
+    apply_styling_to_excel(excel_path)
 

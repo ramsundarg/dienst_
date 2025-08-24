@@ -149,7 +149,7 @@ def get_df(files, name, year, month):
             a2 = [str(s) for s in a1 if "=" in str(s)]
             for hours in a2:
                 for hour in hours.splitlines():
-                    result = re.search(r"(.*) =", hour)
+                    result = re.search(r"([A-Za-z0-9]+)\s*=", hour)
                     # regular expression pattern
                     pattern = r"[0-9]+[:]?[0-9]*-[0-9]+[:]?[0-9]*"
                     work_type_hours[result.group(1)] = {}
@@ -231,6 +231,26 @@ def get_df(files, name, year, month):
                         e.name = f"{Employee}-{work_type}-{value}"
                         start_time = work_type_hours.get(value, {}).get('start', "")
                         end_time = work_type_hours.get(value, {}).get('end', "")
+                        # If start_time or end_time is empty, try to extract from emp[i].values[0]
+                        if (start_time == "" or end_time == "") and isinstance(emp[i].values[0], str):
+                            val = emp[i].values[0]
+                            # Try to match "CODE HH:MM\nHH:MM" or "CODE HH:MM HH:MM"
+                            match = re.match(r"^(\w+)\s+(\d{1,2}:\d{2})(?:\s+|\n)(\d{1,2}:\d{2})", val)
+                            if match:
+                                value = match.group(1)
+                                start_time = match.group(2)
+                                end_time = match.group(3)
+                            else:
+                                # Try to match "CODE\nHH:MM\nHH:MM"
+                                lines = val.splitlines()
+                                if len(lines) >= 3:
+                                    code = lines[0].strip()
+                                    st = lines[1].strip()
+                                    et = lines[2].strip()
+                                    if re.match(r"\d{1,2}:\d{2}", st) and re.match(r"\d{1,2}:\d{2}", et):
+                                        value = code
+                                        start_time = st
+                                        end_time = et
                         if start_time == "" or end_time == "":
                             e.begin = date1.strftime("%Y-%m-%d") + f"T00:00"
                             e.end = date1.strftime("%Y-%m-%d") + f"T23:59"
